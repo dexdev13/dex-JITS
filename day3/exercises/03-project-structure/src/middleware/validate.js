@@ -9,6 +9,24 @@
 function validate(schema, source = 'body') {
   return (req, res, next) => {
     // TODO: implement
+    const { error, value } = schema.validate(req[source], {
+      abortEarly: false,
+      stripUnknown: true,
+      convert: true,
+    });
+
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        details: error.details.map((d) => ({
+          field: d.path.join('.'),
+          message: d.message,
+        })),
+      });
+    }
+
+    req[source] = value;
     next();
   };
 }

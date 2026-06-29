@@ -20,7 +20,12 @@ const todosService = require('../services/todos.service');
 async function getAll(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement getAll controller' });
+    const todos = await todosService.getAllTodos(req.query);
+    return res.status(200).json({
+      success: true,
+      data: todos,
+      total: todos.length,
+    });
   } catch (err) {
     next(err);
   }
@@ -35,7 +40,11 @@ async function getAll(req, res, next) {
 async function getById(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement getById controller' });
+    const todo = await todosService.getTodoById(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: todo,
+    });
   } catch (err) {
     next(err);
   }
@@ -50,7 +59,12 @@ async function getById(req, res, next) {
 async function create(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement create controller' });
+    const todo = await todosService.createTodo(req.body);
+    return res.status(201).json({
+      success: true,
+      data: todo,
+      message: 'Todo created successfully',
+    });
   } catch (err) {
     next(err);
   }
@@ -65,7 +79,12 @@ async function create(req, res, next) {
 async function update(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement update controller' });
+    const todo = await todosService.updateTodo(req.params.id, req.body);
+    return res.status(200).json({
+      success: true,
+      data: todo,
+      message: 'Todo updated',
+    });
   } catch (err) {
     next(err);
   }
@@ -80,7 +99,12 @@ async function update(req, res, next) {
 async function toggleComplete(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement toggleComplete controller' });
+    const result = await todosService.toggleComplete(req.params.id);
+    return res.status(200).json({
+      success: true,
+      data: result.todo,
+      message: result.message,
+    });
   } catch (err) {
     next(err);
   }
@@ -95,7 +119,11 @@ async function toggleComplete(req, res, next) {
 async function remove(req, res, next) {
   try {
     // TODO: implement
-    res.json({ message: 'TODO: implement remove controller' });
+    await todosService.deleteTodo(req.params.id);
+    return res.status(200).json({
+      success: true,
+      message: 'Todo deleted successfully',
+    });
   } catch (err) {
     next(err);
   }

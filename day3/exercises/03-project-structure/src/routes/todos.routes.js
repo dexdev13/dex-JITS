@@ -13,28 +13,28 @@
  * Nếu đặt sau, Express sẽ match "complete" như là id
  */
 
-const router = require("express").Router();
-const validate = require("../middleware/validate");
-const { createTodoSchema, updateTodoSchema, todoQuerySchema } = require("../schemas/todo.schema");
-const todosController = require("../controllers/todos.controller");
+const router = require('express').Router();
+const validate = require('../middleware/validate');
+const { createTodoSchema, updateTodoSchema, todoQuerySchema } = require('../schemas/todo.schema');
+const todosController = require('../controllers/todos.controller');
 
 // TODO: wire up routes
 // GET /
-router.get("/", validate(todoQuerySchema, "query"), todosController.getAll);
+router.get('/', validate(todoQuerySchema, 'query'), todosController.getAll);
 
 // POST /
-router.post("/", validate(createTodoSchema), todosController.create);
+router.post('/', validate(createTodoSchema), todosController.create);
 
 // PATCH /:id/complete - phải trước /:id
-router.patch("/:id/complete", todosController.toggleComplete);
+router.patch('/:id/complete', todosController.toggleComplete);
 
 // GET /:id
-router.get("/:id", todosController.getById);
+router.get('/:id', todosController.getById);
 
 // PATCH /:id
-router.patch("/:id", validate(updateTodoSchema), todosController.update);
+router.patch('/:id', validate(updateTodoSchema), todosController.update);
 
 // DELETE /:id
-router.delete("/:id", todosController.remove);
+router.delete('/:id', todosController.remove);
 
 module.exports = router;

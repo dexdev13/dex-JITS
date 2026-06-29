@@ -10,6 +10,20 @@
 
 const store = require('../data/todos.store');
 
+function createHttpError(message, statusCode) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
+function assertPositiveInteger(id) {
+  const todoId = Number(id);
+  if (!Number.isInteger(todoId) || todoId <= 0) {
+    throw createHttpError('Invalid todo ID', 400);
+  }
+  return todoId;
+}
+
 /**
  * TODO: Implement getAllTodos(filter)
  *
@@ -19,7 +33,7 @@ const store = require('../data/todos.store');
  */
 async function getAllTodos(filter) {
   // TODO: implement
-  return [];
+  return store.getAll(filter);
 }
 
 /**
@@ -37,7 +51,14 @@ async function getAllTodos(filter) {
  */
 async function getTodoById(id) {
   // TODO: implement
-  return null;
+  const todoId = assertPositiveInteger(id);
+  const todo = store.getById(todoId);
+
+  if (!todo) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  return todo;
 }
 
 /**
@@ -48,7 +69,15 @@ async function getTodoById(id) {
  */
 async function createTodo({ title, priority }) {
   // TODO: implement
-  return null;
+  const normalizedTitle = String(title ?? '').trim();
+  if (!normalizedTitle) {
+    throw createHttpError('Title is required', 400);
+  }
+
+  return store.create({
+    title: normalizedTitle,
+    priority: priority || 'medium',
+  });
 }
 
 /**
@@ -61,7 +90,19 @@ async function createTodo({ title, priority }) {
  */
 async function updateTodo(id, data) {
   // TODO: implement
-  return null;
+  const todoId = assertPositiveInteger(id);
+  const existingTodo = store.getById(todoId);
+
+  if (!existingTodo) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  const updatedTodo = store.update(todoId, data);
+  if (!updatedTodo) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  return updatedTodo;
 }
 
 /**
@@ -75,7 +116,20 @@ async function updateTodo(id, data) {
  */
 async function toggleComplete(id) {
   // TODO: implement
-  return null;
+  const todoId = assertPositiveInteger(id);
+  const todo = store.getById(todoId);
+
+  if (!todo) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  const nextCompleted = !todo.completed;
+  const updatedTodo = store.update(todoId, { completed: nextCompleted });
+
+  return {
+    todo: updatedTodo,
+    message: nextCompleted ? 'Todo marked as completed' : 'Todo marked as active',
+  };
 }
 
 /**
@@ -88,7 +142,19 @@ async function toggleComplete(id) {
  */
 async function deleteTodo(id) {
   // TODO: implement
-  return false;
+  const todoId = assertPositiveInteger(id);
+  const todo = store.getById(todoId);
+
+  if (!todo) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  const removed = store.remove(todoId);
+  if (!removed) {
+    throw createHttpError('Todo not found', 404);
+  }
+
+  return true;
 }
 
 module.exports = {
