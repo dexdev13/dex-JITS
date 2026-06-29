@@ -21,7 +21,7 @@
  * Test: curl http://localhost:3005/api/todos
  */
 
-const express = require("express");
+const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3005;
 
@@ -34,8 +34,8 @@ app.use(express.json());
 let todos = [];
 let nextId = 1;
 
-const VALID_PRIORITIES = ["low", "medium", "high"];
-const VALID_FILTERS = ["all", "active", "completed"];
+const VALID_PRIORITIES = ['low', 'medium', 'high'];
+const VALID_FILTERS = ['all', 'active', 'completed'];
 
 // ============================================================
 // Helper: Response format nhất quán
@@ -61,7 +61,7 @@ function successResponse(res, data, statusCode = 200, message = null) {
 }
 
 // TODO: implement errorResponse
-function errorResponse(res, message, statusCode = 400, code = "ERROR") {
+function errorResponse(res, message, statusCode = 400, code = 'ERROR') {
   // Implement ở đây
   return res.status(statusCode).json({ success: false, error: message, code });
 }
@@ -77,7 +77,7 @@ function errorResponse(res, message, statusCode = 400, code = "ERROR") {
 function requestLogger(req, res, next) {
   const start = Date.now();
   console.log(`--> ${req.method} ${req.path}`);
-  res.on("finish", () => {
+  res.on('finish', () => {
     console.log(`<-- ${req.method} ${req.path} ${res.statusCode} ${Date.now() - start}ms`);
   });
   next();
@@ -111,38 +111,75 @@ app.use(requestLogger);
  * - filter không hợp lệ -> 400 { error: "Invalid filter value" }
  * - priority không hợp lệ -> 400 { error: "Invalid priority value" }
  */
-app.get("/api/todos", (req, res) => {
+app.get('/api/todos', (req, res) => {
   // TODO: implement
   // 1. Lấy query params
-  const { filter = "all", priority, search, sort = "createdAt", order = "asc" } = req.query;
+  const { filter = 'all', priority, search, sort = 'createdAt', order = 'asc' } = req.query;
 
   // 2. Validate filter
   if (!VALID_FILTERS.includes(filter)) {
-    return errorResponse(res, `Invalid filter. Must be one of: ${VALID_FILTERS.join(", ")}`);
+    return errorResponse(res, `Invalid filter. Must be one of: ${VALID_FILTERS.join(', ')}`);
   }
 
   // 3. Validate priority nếu có
   if (priority && !VALID_PRIORITIES.includes(priority)) {
-    return errorResponse(res, `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(", ")}`);
+    return errorResponse(res, `Invalid priority. Must be one of: ${VALID_PRIORITIES.join(', ')}`);
   }
 
   // TODO: implement filter logic
   let result = [...todos];
 
   // TODO: filter by status (filter param)
-
   // TODO: filter by priority
-
   // TODO: search by title
-
   // TODO: sort
+  if (filter === 'active') {
+    result = result.filter((todo) => !todo.completed);
+  } else if (filter === 'completed') {
+    result = result.filter((todo) => todo.completed);
+  }
+
+  if (priority) {
+    result = result.filter((todo) => todo.priority === priority);
+  }
+
+  if (search) {
+    const keyword = search.toLowerCase().trim();
+    result = result.filter((todo) => todo.title.toLowerCase().includes(keyword));
+  }
+
+  const allowedSortFields = ['createdAt', 'priority', 'title'];
+  const sortField = allowedSortFields.includes(sort) ? sort : 'createdAt';
+  const sortOrder = order === 'desc' ? -1 : 1;
+
+  const priorityRank = { low: 1, medium: 2, high: 3 };
+
+  result.sort((a, b) => {
+    let aValue;
+    let bValue;
+
+    if (sortField === 'priority') {
+      aValue = priorityRank[a.priority];
+      bValue = priorityRank[b.priority];
+    } else if (sortField === 'createdAt') {
+      aValue = new Date(a.createdAt).getTime();
+      bValue = new Date(b.createdAt).getTime();
+    } else {
+      aValue = String(a[sortField]).toLowerCase();
+      bValue = String(b[sortField]).toLowerCase();
+    }
+
+    if (aValue < bValue) return -1 * sortOrder;
+    if (aValue > bValue) return 1 * sortOrder;
+    return 0;
+  });
 
   return res.json({
     success: true,
     data: result,
     total: result.length,
     filters: { filter, priority: priority || null, search: search || null },
-    message: "TODO: implement filter, search, sort logic",
+    message: 'TODO: implement filter, search, sort logic',
   });
 });
 
@@ -172,9 +209,9 @@ app.get("/api/todos", (req, res) => {
  * - title quá 200 ký tự -> 400
  * - priority không hợp lệ -> 400
  */
-app.post("/api/todos", (req, res) => {
+app.post('/api/todos', (req, res) => {
   // TODO: implement
-  const { title, priority = "medium" } = req.body;
+  const { title, priority = 'medium' } = req.body;
 
   // TODO: validate title
   // TODO: validate priority
@@ -182,7 +219,40 @@ app.post("/api/todos", (req, res) => {
   // TODO: push vào todos array
   // TODO: return 201
 
-  return res.json({ message: "TODO: implement POST /api/todos" });
+  if (title === undefined) {
+    return errorResponse(res, 'Title is required', 400, 'VALIDATION_ERROR');
+  }
+
+  if (typeof title !== 'string') {
+    return errorResponse(res, 'Title must be a string', 400, 'VALIDATION_ERROR');
+  }
+
+  const trimmedTitle = title.trim();
+
+  if (!trimmedTitle) {
+    return errorResponse(res, 'Title cannot be empty', 400, 'VALIDATION_ERROR');
+  }
+
+  if (trimmedTitle.length > 200) {
+    return errorResponse(res, 'Title must not exceed 200 characters', 400, 'VALIDATION_ERROR');
+  }
+
+  if (!VALID_PRIORITIES.includes(priority)) {
+    return errorResponse(res, 'Invalid priority value', 400, 'INVALID_PRIORITY');
+  }
+
+  const todo = {
+    id: nextId++,
+    title: trimmedTitle,
+    priority,
+    completed: false,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+
+  todos.push(todo);
+
+  return successResponse(res, todo, 201, 'Todo created successfully');
 });
 
 // ============================================================
@@ -196,13 +266,25 @@ app.post("/api/todos", (req, res) => {
  * Response 400: ID không hợp lệ
  * Response 404: Todo không tồn tại
  */
-app.get("/api/todos/:id", (req, res) => {
+app.get('/api/todos/:id', (req, res) => {
   // TODO: implement
   // 1. Parse và validate id (phải là số nguyên dương)
   // 2. Tìm todo theo id
   // 3. 404 nếu không tìm thấy
 
-  return res.json({ message: "TODO: implement GET /api/todos/:id" });
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return errorResponse(res, 'Invalid todo ID', 400, 'INVALID_ID');
+  }
+
+  const todo = todos.find((t) => t.id === id);
+
+  if (!todo) {
+    return errorResponse(res, 'Todo not found', 404, 'NOT_FOUND');
+  }
+
+  return successResponse(res, todo);
 });
 
 // ============================================================
@@ -228,7 +310,7 @@ app.get("/api/todos/:id", (req, res) => {
  * PATCH /api/todos/1 { "title": "New title" }        -> chỉ update title
  * PATCH /api/todos/1 { "priority": "high", "title": "Updated" }  -> update 2 fields
  */
-app.patch("/api/todos/:id", (req, res) => {
+app.patch('/api/todos/:id', (req, res) => {
   // TODO: implement
   // 1. Validate id
   // 2. Check body không rỗng
@@ -237,7 +319,75 @@ app.patch("/api/todos/:id", (req, res) => {
   // 5. Update chỉ các field có trong body
   // 6. Thêm updatedAt: new Date() vào todo
 
-  return res.json({ message: "TODO: implement PATCH /api/todos/:id" });
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return errorResponse(res, 'Invalid todo ID', 400, 'INVALID_ID');
+  }
+
+  if (!req.body || Object.keys(req.body).length === 0) {
+    return errorResponse(res, 'At least one field required for update', 400, 'VALIDATION_ERROR');
+  }
+
+  const { title, priority, completed } = req.body;
+
+  const allowedFields = ['title', 'priority', 'completed'];
+  for (const key of Object.keys(req.body)) {
+    if (!allowedFields.includes(key)) {
+      return errorResponse(
+        res,
+        `Field '${key}' is not allowed for update`,
+        400,
+        'VALIDATION_ERROR',
+      );
+    }
+  }
+
+  if (title !== undefined) {
+    if (typeof title !== 'string') {
+      return errorResponse(res, 'Title must be a string', 400, 'VALIDATION_ERROR');
+    }
+
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
+      return errorResponse(res, 'Title cannot be empty', 400, 'VALIDATION_ERROR');
+    }
+
+    if (trimmedTitle.length > 200) {
+      return errorResponse(res, 'Title must not exceed 200 characters', 400, 'VALIDATION_ERROR');
+    }
+  }
+
+  if (priority !== undefined && !VALID_PRIORITIES.includes(priority)) {
+    return errorResponse(res, 'Invalid priority value', 400, 'INVALID_PRIORITY');
+  }
+
+  if (completed !== undefined && typeof completed !== 'boolean') {
+    return errorResponse(res, 'Completed must be a boolean', 400, 'VALIDATION_ERROR');
+  }
+
+  const todo = todos.find((t) => t.id === id);
+
+  if (!todo) {
+    return errorResponse(res, 'Todo not found', 404, 'NOT_FOUND');
+  }
+
+  if (title !== undefined) {
+    todo.title = title.trim();
+  }
+
+  if (priority !== undefined) {
+    todo.priority = priority;
+  }
+
+  if (completed !== undefined) {
+    todo.completed = completed;
+  }
+
+  todo.updatedAt = new Date();
+
+  return successResponse(res, todo, 200, 'Todo updated');
 });
 
 // ============================================================
@@ -260,31 +410,31 @@ app.patch("/api/todos/:id", (req, res) => {
  *
  * Response 404: Todo không tồn tại
  */
-app.patch("/api/todos/:id/complete", (req, res) => {
+app.patch('/api/todos/:id/complete', (req, res) => {
   // TODO: implement
   // Tìm todo, toggle completed, trả về kết quả
 
-  return res.json({ message: "TODO: implement PATCH /api/todos/:id/complete" });
-});
+  const id = Number(req.params.id);
 
-// ============================================================
-// DELETE /api/todos/:id
-// ============================================================
+  if (!Number.isInteger(id) || id <= 0) {
+    return errorResponse(res, 'Invalid todo ID', 400, 'INVALID_ID');
+  }
 
-/**
- * TODO: Implement xóa todo
- *
- * Response 200: { "success": true, "message": "Todo deleted successfully" }
- * Response 404: Todo không tồn tại
- */
-app.delete("/api/todos/:id", (req, res) => {
-  // TODO: implement
-  // 1. Validate id
-  // 2. Tìm index, 404 nếu không tìm thấy
-  // 3. Xóa khỏi mảng dùng splice
-  // 4. Return 200
+  const todo = todos.find((t) => t.id === id);
 
-  return res.json({ message: "TODO: implement DELETE /api/todos/:id" });
+  if (!todo) {
+    return errorResponse(res, 'Todo not found', 404, 'NOT_FOUND');
+  }
+
+  todo.completed = !todo.completed;
+  todo.updatedAt = new Date();
+
+  return successResponse(
+    res,
+    todo,
+    200,
+    todo.completed ? 'Todo marked as completed' : 'Todo marked as active',
+  );
 });
 
 // ============================================================
@@ -307,22 +457,69 @@ app.delete("/api/todos/:id", (req, res) => {
  * }
  */
 
+app.delete('/api/todos/completed', (req, res) => {
+  const before = todos.length;
+  todos = todos.filter((todo) => !todo.completed);
+  const deletedCount = before - todos.length;
+
+  return successResponse(res, { deletedCount }, 200, `Deleted ${deletedCount} completed todos`);
+});
+
+// ============================================================
+// DELETE /api/todos/:id
+// ============================================================
+
+/**
+ * TODO: Implement xóa todo
+ *
+ * Response 200: { "success": true, "message": "Todo deleted successfully" }
+ * Response 404: Todo không tồn tại
+ */
+app.delete('/api/todos/:id', (req, res) => {
+  // TODO: implement
+  // 1. Validate id
+  // 2. Tìm index, 404 nếu không tìm thấy
+  // 3. Xóa khỏi mảng dùng splice
+  // 4. Return 200
+
+  const id = Number(req.params.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return errorResponse(res, 'Invalid todo ID', 400, 'INVALID_ID');
+  }
+
+  const index = todos.findIndex((t) => t.id === id);
+
+  if (index === -1) {
+    return errorResponse(res, 'Todo not found', 404, 'NOT_FOUND');
+  }
+
+  todos.splice(index, 1);
+
+  return successResponse(res, null, 200, 'Todo deleted successfully');
+});
+
 // ============================================================
 // 404 & Error Handler
 // ============================================================
 
 app.use((req, res) => {
-  errorResponse(res, `Cannot ${req.method} ${req.path}`, 404, "NOT_FOUND");
+  errorResponse(res, `Cannot ${req.method} ${req.path}`, 404, 'NOT_FOUND');
 });
 
 app.use((err, req, res, next) => {
-  console.error("[ERROR]", err.message);
+  console.error('[ERROR]', err.message);
 
-  if (err.type === "entity.parse.failed") {
-    return errorResponse(res, "Invalid JSON in request body", 400, "INVALID_JSON");
+  if (err.type === 'entity.parse.failed') {
+    return errorResponse(res, 'Invalid JSON in request body', 400, 'INVALID_JSON');
   }
 
-  errorResponse(res, err.message || "Internal Server Error", err.statusCode || 500, "INTERNAL_ERROR");
+  errorResponse(
+    res,
+    err.message || 'Internal Server Error',
+    err.statusCode || 500,
+    'INTERNAL_ERROR',
+  );
 });
 
 // ============================================================
@@ -331,7 +528,7 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`\nTODO API running on http://localhost:${PORT}`);
-  console.log("\n--- Hướng dẫn test ---");
+  console.log('\n--- Hướng dẫn test ---');
   console.log(`\n# 1. Tạo vài todos:`);
   console.log(`curl -X POST http://localhost:${PORT}/api/todos \\`);
   console.log(`  -H "Content-Type: application/json" \\`);
@@ -357,8 +554,12 @@ app.listen(PORT, () => {
   console.log(`\n# 6. Xóa todo:`);
   console.log(`curl -X DELETE http://localhost:${PORT}/api/todos/3`);
   console.log(`\n# 7. Test validation error:`);
-  console.log(`curl -X POST http://localhost:${PORT}/api/todos -H "Content-Type: application/json" -d '{}'`);
-  console.log(`curl -X POST http://localhost:${PORT}/api/todos -H "Content-Type: application/json" -d '{"title":"","priority":"invalid"}'`);
+  console.log(
+    `curl -X POST http://localhost:${PORT}/api/todos -H "Content-Type: application/json" -d '{}'`,
+  );
+  console.log(
+    `curl -X POST http://localhost:${PORT}/api/todos -H "Content-Type: application/json" -d '{"title":"","priority":"invalid"}'`,
+  );
   console.log(`\n# 8. Test 404:`);
   console.log(`curl http://localhost:${PORT}/api/todos/999`);
   console.log(`curl -X DELETE http://localhost:${PORT}/api/todos/999`);
@@ -392,22 +593,22 @@ app.listen(PORT, () => {
  * startServer();
  */
 
-// const fs = require("fs").promises;
-// const path = require("path");
-// const DATA_FILE = path.join(__dirname, "todos.json");
-//
-// async function loadData() {
-//   try {
-//     const data = await fs.readFile(DATA_FILE, "utf-8");
-//     const parsed = JSON.parse(data);
-//     todos = parsed.todos || [];
-//     nextId = parsed.nextId || 1;
-//     console.log(`Loaded ${todos.length} todos from file`);
-//   } catch {
-//     console.log("No existing data file, starting fresh");
-//   }
-// }
-//
-// async function saveData() {
-//   await fs.writeFile(DATA_FILE, JSON.stringify({ todos, nextId }, null, 2));
-// }
+const fs = require('fs').promises;
+const path = require('path');
+const DATA_FILE = path.join(__dirname, 'todos.json');
+
+async function loadData() {
+  try {
+    const data = await fs.readFile(DATA_FILE, 'utf-8');
+    const parsed = JSON.parse(data);
+    todos = parsed.todos || [];
+    nextId = parsed.nextId || 1;
+    console.log(`Loaded ${todos.length} todos from file`);
+  } catch {
+    console.log('No existing data file, starting fresh');
+  }
+}
+
+async function saveData() {
+  await fs.writeFile(DATA_FILE, JSON.stringify({ todos, nextId }, null, 2));
+}

@@ -12,7 +12,7 @@
  * Test: curl http://localhost:3003/...
  */
 
-const express = require("express");
+const express = require('express');
 const app = express();
 const PORT = 3003;
 
@@ -27,21 +27,26 @@ app.use(express.json());
  *
  * Q1: Middleware A gọi next(), Middleware B KHÔNG gọi next().
  *     Route handler có được thực thi không? Tại sao?
- * A1:
+ * A1: Không. Pipeline dừng tại Middleware B.
+ *     Express chỉ tiếp tục khi middleware hiện tại gọi next() hoặc chưa gửi response.
  *
  * Q2: Nếu middleware gọi res.json() mà KHÔNG gọi next(),
  *     các middleware phía sau có chạy không?
- * A2:
+ * A2: Middleware phía sau sẽ không chạy. Vì res.json() đã gửi response -> Req kết thúc.
  *
  * Q3: Error middleware có 4 tham số (err, req, res, next).
  *     Làm sao để "kích hoạt" error middleware từ route handler?
- * A3:
+ * A3: Truyền đối tượng error vào hàm next() bên trong route handler (next(err)).
+ *     VD:
+ *     const err = new Error('Có lỗi xảy ra!');
+ *     next(err); // <--- Truyền err vào next() để kích hoạt middleware
+ *     Express sẽ bỏ qua middleware thường và đi thẳng tới: (err, req, res, next)
  *
  * Q4: Middleware khai báo sau app.use("/api", router) có chạy cho route /api/users không?
- * A4:
+ * A4: Nếu router gửi response luôn thì middleware sau không chạy, nếu router gọi next() thì middleware sau chạy.
  *
  * Q5: Global middleware khai báo SAU route definition có áp dụng cho route đó không?
- * A5:
+ * A5: Middleware chỉ chạy theo thứ tự khai báo -> Không.
  *
  * Demo thứ tự (chạy và quan sát log):
  */
@@ -50,23 +55,23 @@ function demoMiddlewareOrder() {
   const demoApp = express();
 
   demoApp.use((req, res, next) => {
-    console.log("Middleware 1 - trước route");
+    console.log('Middleware 1 - trước route');
     next();
   });
 
-  demoApp.get("/demo", (req, res, next) => {
-    console.log("Route handler");
+  demoApp.get('/demo', (req, res, next) => {
+    console.log('Route handler');
     next(); // có thể gọi next() trong route để tiếp tục
   });
 
   demoApp.use((req, res, next) => {
-    console.log("Middleware 2 - sau route");
-    res.json({ message: "Response từ Middleware 2" });
+    console.log('Middleware 2 - sau route');
+    res.json({ message: 'Response từ Middleware 2' });
   });
 
   // Uncomment để test:
-  // const server = demoApp.listen(3099, () => console.log("Demo on 3099"));
-  // setTimeout(() => server.close(), 5000);
+  const server = demoApp.listen(3099, () => console.log('Demo on 3099'));
+  setTimeout(() => server.close(), 5000);
 }
 
 // ============================================================
@@ -89,13 +94,17 @@ function demoMiddlewareOrder() {
 function requestLogger(req, res, next) {
   // TODO: implement logger
   // Hint:
-  // const start = Date.now();
-  // const timestamp = () => new Date().toISOString();
-  // const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  // req.id = requestId;
-  // res.set("X-Request-ID", requestId);
-  // console.log(`[${timestamp()}] --> ${req.method} ${req.path}`);
-  // res.on("finish", () => { ... });
+  const start = Date.now();
+  const timestamp = () => new Date().toISOString();
+  const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+  req.id = requestId;
+  res.set('X-Request-ID', requestId);
+  console.log(`[${timestamp()}] --> ${req.method} ${req.path}`);
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+
+    console.log(`[${timestamp()}] <-- ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+  });
   next();
 }
 
@@ -119,9 +128,9 @@ function requestLogger(req, res, next) {
  */
 
 const validTokens = {
-  "token-alice-123": { id: 1, name: "Alice", role: "admin" },
-  "token-bob-456": { id: 2, name: "Bob", role: "user" },
-  "token-charlie-789": { id: 3, name: "Charlie", role: "user" },
+  'token-alice-123': { id: 1, name: 'Alice', role: 'admin' },
+  'token-bob-456': { id: 2, name: 'Bob', role: 'user' },
+  'token-charlie-789': { id: 3, name: 'Charlie', role: 'user' },
 };
 
 function authenticate(req, res, next) {
@@ -129,7 +138,20 @@ function authenticate(req, res, next) {
   // Hint: req.get("Authorization") hoặc req.headers.authorization
   // Hint: header.startsWith("Bearer ") để check format
   // Hint: header.slice(7) để lấy token sau "Bearer "
-  next(); // Xóa dòng này khi implement
+  const header = req.get('Authorization');
+  if (!header) {
+    return res.status(401).json({ error: 'No token provided' });
+  }
+  if (!header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Invalid token format' });
+  }
+  const token = header.slice(7);
+  const user = validTokens[token];
+  if (!user) {
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+  req.user = user;
+  next();
 }
 
 // ============================================================
@@ -153,7 +175,10 @@ function authorize(roles) {
   return (req, res, next) => {
     // TODO: implement authorization
     // Hint: roles.includes(req.user.role)
-    next(); // Xóa dòng này khi implement
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Insufficient permissions' });
+    }
+    next();
   };
 }
 
@@ -197,8 +222,47 @@ function validateBody(schema) {
     // Push lỗi vào errors array
     // Ví dụ lỗi: "name is required", "price must be a number", "name must be at least 2 characters"
 
+    for (const field in schema) {
+      const rules = schema[field];
+      const value = req.body[field];
+
+      if (rules.required && value === undefined) {
+        errors.push(`${field} is required`);
+        continue;
+      }
+
+      if (value === undefined) {
+        continue;
+      }
+
+      if (typeof value !== rules.type) {
+        errors.push(`${field} must be a ${rules.type}`);
+        continue;
+      }
+
+      if (rules.type === 'string') {
+        if (rules.minLength && value.length < rules.minLength) {
+          errors.push(`${field} must be at least ${rules.minLength} characters`);
+        }
+
+        if (rules.maxLength && value.length > rules.maxLength) {
+          errors.push(`${field} must be at most ${rules.maxLength} characters`);
+        }
+      }
+
+      if (rules.type === 'number') {
+        if (rules.min !== undefined && value < rules.min) {
+          errors.push(`${field} must be at least ${rules.min}`);
+        }
+
+        if (rules.max !== undefined && value > rules.max) {
+          errors.push(`${field} must be at most ${rules.max}`);
+        }
+      }
+    }
+
     if (errors.length > 0) {
-      return res.status(400).json({ error: "Validation failed", details: errors });
+      return res.status(400).json({ error: 'Validation failed', details: errors });
     }
 
     next();
@@ -237,12 +301,30 @@ function rateLimiter({ windowMs = 60000, max = 10 } = {}) {
     // 3. Nếu count < max -> tăng count, set headers, gọi next()
     // 4. Nếu count >= max -> trả về 429
 
-    // Set rate limit headers
-    // res.set("X-RateLimit-Limit", max);
-    // res.set("X-RateLimit-Remaining", Math.max(0, max - clientRecord.count));
-    // res.set("X-RateLimit-Reset", new Date(clientRecord.resetTime).toISOString());
+    let clientRecord = clients.get(ip);
 
-    next(); // Xóa dòng này khi implement
+    if (!clientRecord || now > clientRecord.resetTime) {
+      clientRecord = {
+        count: 1,
+        resetTime: now + windowMs,
+      };
+
+      clients.set(ip, clientRecord);
+    } else {
+      clientRecord.count++;
+    }
+
+    res.set('X-RateLimit-Limit', max);
+    res.set('X-RateLimit-Remaining', Math.max(0, max - clientRecord.count));
+    res.set('X-RateLimit-Reset', new Date(clientRecord.resetTime).toISOString());
+
+    if (clientRecord.count > max) {
+      return res.status(429).json({
+        error: 'Too Many Requests',
+      });
+    }
+
+    next();
   };
 }
 
@@ -257,29 +339,29 @@ function rateLimiter({ windowMs = 60000, max = 10 } = {}) {
  */
 
 class AppError extends Error {
-  constructor(message, statusCode = 500, code = "INTERNAL_ERROR") {
+  constructor(message, statusCode = 500, code = 'INTERNAL_ERROR') {
     super(message);
-    this.name = "AppError";
+    this.name = 'AppError';
     this.statusCode = statusCode;
     this.code = code;
   }
 }
 
 class NotFoundError extends AppError {
-  constructor(resource = "Resource") {
-    super(`${resource} not found`, 404, "NOT_FOUND");
+  constructor(resource = 'Resource') {
+    super(`${resource} not found`, 404, 'NOT_FOUND');
   }
 }
 
 class ValidationError extends AppError {
   constructor(message) {
-    super(message, 400, "VALIDATION_ERROR");
+    super(message, 400, 'VALIDATION_ERROR');
   }
 }
 
 class UnauthorizedError extends AppError {
-  constructor(message = "Unauthorized") {
-    super(message, 401, "UNAUTHORIZED");
+  constructor(message = 'Unauthorized') {
+    super(message, 401, 'UNAUTHORIZED');
   }
 }
 
@@ -297,26 +379,34 @@ class UnauthorizedError extends AppError {
 function errorHandler(err, req, res, next) {
   // TODO: implement error handler
   console.error(`[ERROR] ${err.message}`);
+  console.error(err.stack);
 
   // Xử lý JSON parse error từ express.json()
-  if (err.type === "entity.parse.failed") {
+  if (err.type === 'entity.parse.failed') {
     return res.status(400).json({
       success: false,
-      error: "Invalid JSON in request body",
-      code: "INVALID_JSON",
+      error: 'Invalid JSON in request body',
+      code: 'INVALID_JSON',
     });
   }
 
   // TODO: xử lý AppError và các loại lỗi khác
-  const status = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  const code = err.code || "INTERNAL_ERROR";
+  // AppError
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: err.message,
+      code: err.code,
+      ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    });
+  }
 
-  res.status(status).json({
+  // Lỗi khác
+  res.status(500).json({
     success: false,
-    error: message,
-    code,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    error: 'Internal Server Error',
+    code: 'INTERNAL_ERROR',
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
 
@@ -328,66 +418,66 @@ function errorHandler(err, req, res, next) {
 app.use(requestLogger);
 
 // Public routes
-app.get("/public", (req, res) => {
-  res.json({ message: "Public endpoint - no auth needed" });
+app.get('/public', (req, res) => {
+  res.json({ message: 'Public endpoint - no auth needed' });
 });
 
 // Rate limited endpoint (3 requests per 10 seconds for testing)
-app.get("/limited", rateLimiter({ windowMs: 10000, max: 3 }), (req, res) => {
-  res.json({ message: "You passed the rate limit!", requestId: req.id });
+app.get('/limited', rateLimiter({ windowMs: 10000, max: 3 }), (req, res) => {
+  res.json({ message: 'You passed the rate limit!', requestId: req.id });
 });
 
 // Protected routes
-app.get("/protected", authenticate, (req, res) => {
+app.get('/protected', authenticate, (req, res) => {
   res.json({ message: `Hello, ${req.user?.name}!`, user: req.user });
 });
 
-app.get("/admin-only", authenticate, authorize(["admin"]), (req, res) => {
-  res.json({ message: "Admin area", user: req.user });
+app.get('/admin-only', authenticate, authorize(['admin']), (req, res) => {
+  res.json({ message: 'Admin area', user: req.user });
 });
 
 // Product creation with validation
 const productSchema = {
-  name: { required: true, type: "string", minLength: 2, maxLength: 100 },
-  price: { required: true, type: "number", min: 0 },
-  category: { required: false, type: "string" },
-  inStock: { required: false, type: "boolean" },
+  name: { required: true, type: 'string', minLength: 2, maxLength: 100 },
+  price: { required: true, type: 'number', min: 0 },
+  category: { required: false, type: 'string' },
+  inStock: { required: false, type: 'boolean' },
 };
 
-app.post("/products", authenticate, validateBody(productSchema), (req, res) => {
+app.post('/products', authenticate, validateBody(productSchema), (req, res) => {
   // Nếu validate pass -> tạo product
   res.status(201).json({
-    message: "Product created (mock)",
+    message: 'Product created (mock)',
     product: { id: Math.floor(Math.random() * 1000), ...req.body },
   });
 });
 
 // Route throw error để test error middleware
-app.get("/throw/:type", (req, res, next) => {
+app.get('/throw/:type', (req, res, next) => {
   const { type } = req.params;
 
   switch (type) {
-    case "notfound":
-      return next(new NotFoundError("Product"));
-    case "validation":
-      return next(new ValidationError("Name cannot be empty"));
-    case "unauthorized":
+    case 'notfound':
+      return next(new NotFoundError('Product'));
+    case 'validation':
+      return next(new ValidationError('Name cannot be empty'));
+    case 'unauthorized':
       return next(new UnauthorizedError());
-    case "generic":
-      return next(new Error("Unexpected error occurred"));
-    case "sync":
-      throw new Error("Synchronous error"); // Express 5 bắt được, Express 4 thì không
+    case 'generic':
+      return next(new Error('Unexpected error occurred'));
+    case 'sync':
+      throw new Error('Synchronous error'); // Express 5 bắt được, Express 4 thì không
     default:
-      return res.json({ message: "No error thrown" });
+      return res.json({ message: 'No error thrown' });
   }
 });
 
 // Route async error
-app.get("/async-error", async (req, res, next) => {
+app.get('/async-error', async (req, res, next) => {
   try {
     // Mô phỏng async operation thất bại
     await new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Database connection failed")), 100)
+      setTimeout(() => reject(new Error('Database connection failed')), 100),
     );
   } catch (err) {
     next(err); // Phải gọi next(err) trong async handler
@@ -408,15 +498,25 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Middleware server running on http://localhost:${PORT}`);
-  console.log("\nTest middleware:");
+  console.log('\nTest middleware:');
   console.log(`  curl http://localhost:${PORT}/public`);
   console.log(`  curl http://localhost:${PORT}/limited (gọi 4 lần để test rate limit)`);
   console.log(`  curl http://localhost:${PORT}/protected`);
-  console.log(`  curl http://localhost:${PORT}/protected -H "Authorization: Bearer token-alice-123"`);
-  console.log(`  curl http://localhost:${PORT}/admin-only -H "Authorization: Bearer token-bob-456"`);
-  console.log(`  curl http://localhost:${PORT}/admin-only -H "Authorization: Bearer token-alice-123"`);
-  console.log(`  curl -X POST http://localhost:${PORT}/products -H "Authorization: Bearer token-alice-123" -H "Content-Type: application/json" -d '{"name":"Laptop","price":25000000}'`);
-  console.log(`  curl -X POST http://localhost:${PORT}/products -H "Authorization: Bearer token-alice-123" -H "Content-Type: application/json" -d '{"price":-1}'`);
+  console.log(
+    `  curl http://localhost:${PORT}/protected -H "Authorization: Bearer token-alice-123"`,
+  );
+  console.log(
+    `  curl http://localhost:${PORT}/admin-only -H "Authorization: Bearer token-bob-456"`,
+  );
+  console.log(
+    `  curl http://localhost:${PORT}/admin-only -H "Authorization: Bearer token-alice-123"`,
+  );
+  console.log(
+    `  curl -X POST http://localhost:${PORT}/products -H "Authorization: Bearer token-alice-123" -H "Content-Type: application/json" -d '{"name":"Laptop","price":25000000}'`,
+  );
+  console.log(
+    `  curl -X POST http://localhost:${PORT}/products -H "Authorization: Bearer token-alice-123" -H "Content-Type: application/json" -d '{"price":-1}'`,
+  );
   console.log(`  curl http://localhost:${PORT}/throw/notfound`);
   console.log(`  curl http://localhost:${PORT}/throw/validation`);
   console.log(`  curl http://localhost:${PORT}/async-error`);

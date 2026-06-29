@@ -15,41 +15,49 @@
  * DELETE /api/products/:id       - Xóa
  */
 
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const db = require("../data/products");
-const { validateBody } = require("../middleware");
+const db = require('../data/products');
+const { validateBody } = require('../middleware');
 
 // ============================================================
 // Validation Schemas
 // ============================================================
 
 const createProductSchema = {
-  name: { required: true, type: "string", minLength: 2, maxLength: 200 },
-  price: { required: true, type: "number", min: 0 },
-  category: { required: false, type: "string", maxLength: 50 },
-  description: { required: false, type: "string", maxLength: 1000 },
-  inStock: { required: false, type: "boolean" },
-  quantity: { required: false, type: "number", min: 0 },
+  name: { required: true, type: 'string', minLength: 2, maxLength: 200 },
+  price: { required: true, type: 'number', min: 0 },
+  category: { required: false, type: 'string', maxLength: 50 },
+  description: { required: false, type: 'string', maxLength: 1000 },
+  inStock: { required: false, type: 'boolean' },
+  quantity: { required: false, type: 'number', min: 0 },
 };
 
 const replaceProductSchema = {
-  name: { required: true, type: "string", minLength: 2, maxLength: 200 },
-  price: { required: true, type: "number", min: 0 },
-  category: { required: true, type: "string", maxLength: 50 },
-  description: { required: false, type: "string", maxLength: 1000 },
-  inStock: { required: true, type: "boolean" },
-  quantity: { required: true, type: "number", min: 0 },
+  name: { required: true, type: 'string', minLength: 2, maxLength: 200 },
+  price: { required: true, type: 'number', min: 0 },
+  category: { required: true, type: 'string', maxLength: 50 },
+  description: { required: false, type: 'string', maxLength: 1000 },
+  inStock: { required: true, type: 'boolean' },
+  quantity: { required: true, type: 'number', min: 0 },
 };
 
 const patchProductSchema = {
-  name: { required: false, type: "string", minLength: 2, maxLength: 200 },
-  price: { required: false, type: "number", min: 0 },
-  category: { required: false, type: "string", maxLength: 50 },
-  description: { required: false, type: "string", maxLength: 1000 },
-  inStock: { required: false, type: "boolean" },
-  quantity: { required: false, type: "number", min: 0 },
+  name: { required: false, type: 'string', minLength: 2, maxLength: 200 },
+  price: { required: false, type: 'number', min: 0 },
+  category: { required: false, type: 'string', maxLength: 50 },
+  description: { required: false, type: 'string', maxLength: 1000 },
+  inStock: { required: false, type: 'boolean' },
+  quantity: { required: false, type: 'number', min: 0 },
 };
+
+const parseId = (value) => {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const invalidIdResponse = (res) =>
+  res.status(400).json({ success: false, error: 'Invalid product ID' });
 
 // ============================================================
 // GET /api/products
@@ -75,10 +83,20 @@ const patchProductSchema = {
  *   "filters": { <các filter đang áp dụng> }
  * }
  */
-router.get("/", (req, res) => {
+router.get('/', (req, res) => {
   // TODO: lấy query params và gọi db.getAll(options)
   // Hint: const { category, inStock, minPrice, maxPrice, search, sort, order } = req.query;
-  res.json({ message: "TODO: implement GET /api/products" });
+  const { category, inStock, minPrice, maxPrice, search, sort, order } = req.query;
+
+  const options = { category, inStock, minPrice, maxPrice, search, sort, order };
+  const data = db.getAll(options);
+
+  res.json({
+    success: true,
+    data,
+    total: data.length,
+    filters: options,
+  });
 });
 
 // ============================================================
@@ -103,9 +121,13 @@ router.get("/", (req, res) => {
  *   }
  * }
  */
-router.get("/stats", (req, res) => {
+router.get('/stats', (req, res) => {
   // TODO: gọi db.getStats()
-  res.json({ message: "TODO: implement GET /api/products/stats" });
+  const data = db.getStats();
+  res.json({
+    success: true,
+    data,
+  });
 });
 
 // ============================================================
@@ -121,9 +143,13 @@ router.get("/stats", (req, res) => {
  *   "data": ["tech", "furniture", ...]
  * }
  */
-router.get("/categories", (req, res) => {
+router.get('/categories', (req, res) => {
   // TODO: gọi db.getCategories()
-  res.json({ message: "TODO: implement GET /api/products/categories" });
+  const data = db.getCategories();
+  res.json({
+    success: true,
+    data,
+  });
 });
 
 // ============================================================
@@ -137,12 +163,30 @@ router.get("/categories", (req, res) => {
  * Response 400: { "success": false, "error": "Invalid product ID" }  <- nếu id không phải số
  * Response 404: { "success": false, "error": "Product not found" }
  */
-router.get("/:id", (req, res) => {
+router.get('/:id', (req, res) => {
   // TODO:
   // 1. Validate req.params.id là số (dùng isNaN hoặc Number.isInteger)
   // 2. Gọi db.getById(id)
   // 3. Trả về 404 nếu không tìm thấy
-  res.json({ message: "TODO: implement GET /api/products/:id" });
+  const id = parseId(req.params.id);
+
+  if (!id) {
+    return invalidIdResponse(res);
+  }
+
+  const product = db.getById(id);
+
+  if (!product) {
+    return res.status(404).json({
+      success: false,
+      error: 'Product not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    data: product,
+  });
 });
 
 // ============================================================
@@ -159,12 +203,31 @@ router.get("/:id", (req, res) => {
  *
  * Response 201: { "success": true, "data": <product mới>, "message": "Product created successfully" }
  */
-router.post("/", validateBody(createProductSchema), (req, res) => {
+router.post('/', validateBody(createProductSchema), (req, res) => {
   // TODO:
   // 1. Check business rules
   // 2. Gọi db.create(req.body)
   // 3. Trả về 201
-  res.json({ message: "TODO: implement POST /api/products" });
+  const payload = { ...req.body };
+  const quantity = payload.quantity ?? 0;
+  const inStock = payload.inStock ?? true;
+
+  if (inStock === false && quantity > 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'quantity must be 0 when inStock is false',
+    });
+  }
+
+  payload.inStock = quantity === 0 ? false : inStock;
+
+  const product = db.create(payload);
+
+  res.status(201).json({
+    success: true,
+    data: product,
+    message: 'Product created successfully',
+  });
 });
 
 // ============================================================
@@ -180,12 +243,30 @@ router.post("/", validateBody(createProductSchema), (req, res) => {
  * Response 200: { "success": true, "data": <product sau update> }
  * Response 404: { "success": false, "error": "Product not found" }
  */
-router.put("/:id", validateBody(replaceProductSchema), (req, res) => {
+router.put('/:id', validateBody(replaceProductSchema), (req, res) => {
   // TODO:
   // 1. Validate id
   // 2. Gọi db.replace(id, req.body) - thay thế hoàn toàn
   // 3. 404 nếu không tìm thấy
-  res.json({ message: "TODO: implement PUT /api/products/:id" });
+  const id = parseId(req.params.id);
+
+  if (!id) {
+    return invalidIdResponse(res);
+  }
+
+  const product = db.replace(id, req.body);
+
+  if (!product) {
+    return res.status(404).json({
+      success: false,
+      error: 'Product not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    data: product,
+  });
 });
 
 // ============================================================
@@ -202,13 +283,41 @@ router.put("/:id", validateBody(replaceProductSchema), (req, res) => {
  * Response 400: nếu body rỗng
  * Response 404: nếu không tìm thấy
  */
-router.patch("/:id", validateBody(patchProductSchema), (req, res) => {
+router.patch('/:id', validateBody(patchProductSchema), (req, res) => {
   // TODO:
   // 1. Validate id
   // 2. Check body không rỗng: Object.keys(req.body).length === 0
   // 3. Gọi db.update(id, req.body) - chỉ update fields có trong body
   // 4. 404 nếu không tìm thấy
-  res.json({ message: "TODO: implement PATCH /api/products/:id" });
+
+  const id = parseId(req.params.id);
+
+  if (!id) {
+    return invalidIdResponse(res);
+  }
+
+  const { id: _ignoredId, createdAt: _ignoredCreatedAt, ...updatableFields } = req.body;
+
+  if (Object.keys(updatableFields).length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: 'At least one field required for update',
+    });
+  }
+
+  const product = db.update(id, updatableFields);
+
+  if (!product) {
+    return res.status(404).json({
+      success: false,
+      error: 'Product not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    data: product,
+  });
 });
 
 // ============================================================
@@ -222,13 +331,32 @@ router.patch("/:id", validateBody(patchProductSchema), (req, res) => {
  * Hoặc 204 (không có body) - cả hai đều chấp nhận được
  * Response 404: { "success": false, "error": "Product not found" }
  */
-router.delete("/:id", (req, res) => {
+router.delete('/:id', (req, res) => {
   // TODO:
   // 1. Validate id
   // 2. Gọi db.remove(id)
   // 3. 404 nếu không tìm thấy
   // 4. 200 với message nếu xóa thành công
-  res.json({ message: "TODO: implement DELETE /api/products/:id" });
+
+  const id = parseId(req.params.id);
+
+  if (!id) {
+    return invalidIdResponse(res);
+  }
+
+  const removed = db.remove(id);
+
+  if (!removed) {
+    return res.status(404).json({
+      success: false,
+      error: 'Product not found',
+    });
+  }
+
+  res.json({
+    success: true,
+    message: 'Product deleted successfully',
+  });
 });
 
 module.exports = router;

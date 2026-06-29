@@ -13,15 +13,16 @@ function requestLogger(req, res, next) {
 
   // Gán request ID
   req.id = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-  res.set("X-Request-ID", req.id);
+  res.set('X-Request-ID', req.id);
 
   console.log(`[${timestamp()}] --> ${req.method} ${req.path}`);
 
-  res.on("finish", () => {
+  res.on('finish', () => {
     const duration = Date.now() - start;
-    const statusColor = res.statusCode >= 500 ? "ERROR" :
-                        res.statusCode >= 400 ? "WARN " : "OK   ";
-    console.log(`[${timestamp()}] [${statusColor}] <-- ${req.method} ${req.path} ${res.statusCode} ${duration}ms`);
+    const statusColor = res.statusCode >= 500 ? 'ERROR' : res.statusCode >= 400 ? 'WARN ' : 'OK   ';
+    console.log(
+      `[${timestamp()}] [${statusColor}] <-- ${req.method} ${req.path} ${res.statusCode} ${duration}ms`,
+    );
   });
 
   next();
@@ -43,7 +44,7 @@ function validateBody(schema) {
       const value = req.body[field];
 
       // Check required
-      if (rules.required && (value === undefined || value === null || value === "")) {
+      if (rules.required && (value === undefined || value === null || value === '')) {
         errors.push(`${field} is required`);
         continue; // skip các check khác nếu field không có
       }
@@ -52,18 +53,18 @@ function validateBody(schema) {
       if (value === undefined || value === null) continue;
 
       // Check type
-      if (rules.type === "string" && typeof value !== "string") {
+      if (rules.type === 'string' && typeof value !== 'string') {
         errors.push(`${field} must be a string`);
       }
-      if (rules.type === "number" && (typeof value !== "number" || isNaN(value))) {
+      if (rules.type === 'number' && (typeof value !== 'number' || isNaN(value))) {
         errors.push(`${field} must be a number`);
       }
-      if (rules.type === "boolean" && typeof value !== "boolean") {
+      if (rules.type === 'boolean' && typeof value !== 'boolean') {
         errors.push(`${field} must be a boolean`);
       }
 
       // Check string constraints
-      if (typeof value === "string") {
+      if (typeof value === 'string') {
         if (rules.minLength !== undefined && value.length < rules.minLength) {
           errors.push(`${field} must be at least ${rules.minLength} characters`);
         }
@@ -73,7 +74,7 @@ function validateBody(schema) {
       }
 
       // Check number constraints
-      if (typeof value === "number") {
+      if (typeof value === 'number') {
         if (rules.min !== undefined && value < rules.min) {
           errors.push(`${field} must be at least ${rules.min}`);
         }
@@ -84,14 +85,14 @@ function validateBody(schema) {
 
       // Check enum values
       if (rules.enum && !rules.enum.includes(value)) {
-        errors.push(`${field} must be one of: ${rules.enum.join(", ")}`);
+        errors.push(`${field} must be one of: ${rules.enum.join(', ')}`);
       }
     }
 
     if (errors.length > 0) {
       return res.status(400).json({
         success: false,
-        error: "Validation failed",
+        error: 'Validation failed',
         details: errors,
       });
     }
@@ -108,7 +109,7 @@ function notFoundHandler(req, res) {
   res.status(404).json({
     success: false,
     error: `Cannot ${req.method} ${req.path}`,
-    code: "NOT_FOUND",
+    code: 'NOT_FOUND',
   });
 }
 
@@ -119,28 +120,28 @@ function notFoundHandler(req, res) {
 function errorHandler(err, req, res, next) {
   // Log lỗi
   console.error(`[ERROR] ${req.method} ${req.path}:`, err.message);
-  if (process.env.NODE_ENV === "development") {
+  if (process.env.NODE_ENV === 'development') {
     console.error(err.stack);
   }
 
   // JSON parse error
-  if (err.type === "entity.parse.failed") {
+  if (err.type === 'entity.parse.failed') {
     return res.status(400).json({
       success: false,
-      error: "Invalid JSON in request body",
-      code: "INVALID_JSON",
+      error: 'Invalid JSON in request body',
+      code: 'INVALID_JSON',
     });
   }
 
   const status = err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  const code = err.code || "INTERNAL_ERROR";
+  const message = err.message || 'Internal Server Error';
+  const code = err.code || 'INTERNAL_ERROR';
 
   res.status(status).json({
     success: false,
     error: message,
     code,
-    ...(process.env.NODE_ENV === "development" && { stack: err.stack }),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 }
 
