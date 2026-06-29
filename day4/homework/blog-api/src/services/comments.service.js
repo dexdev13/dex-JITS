@@ -26,7 +26,19 @@ const Post = require('../models/post.model');
 
 async function getCommentsByPost(postId) {
   // TODO: implement getCommentsByPost
-  throw new Error('TODO: implement getCommentsByPost service');
+  const post = await Post.findById(postId);
+  if (!post) {
+    const err = new Error('Post not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const comments = await Comment.find({ post: postId })
+    .sort({ createdAt: 1 })
+    .populate({ path: 'author', select: 'name' })
+    .lean();
+
+  return comments;
 }
 
 // ============================================================
@@ -47,7 +59,16 @@ async function getCommentsByPost(postId) {
 
 async function addComment(postId, { content }, authorId) {
   // TODO: implement addComment với check post published
-  throw new Error('TODO: implement addComment service');
+  const post = await Post.findById(postId);
+  if (!post || !post.published) {
+    const err = new Error('Post not found or not published');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  const comment = await Comment.create({ content, post: postId, author: authorId });
+  await comment.populate({ path: 'author', select: 'name' });
+  return comment;
 }
 
 // ============================================================
@@ -66,7 +87,21 @@ async function addComment(postId, { content }, authorId) {
 
 async function deleteComment(commentId, currentUserId, currentUserRole) {
   // TODO: implement deleteComment với ownership check
-  throw new Error('TODO: implement deleteComment service');
+  const comment = await Comment.findById(commentId);
+  if (!comment) {
+    const err = new Error('Comment not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (comment.author.toString() !== currentUserId.toString() && currentUserRole !== 'admin') {
+    const err = new Error('You can only delete your own comments');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  await Comment.findByIdAndDelete(commentId);
+  return { message: 'Comment deleted' };
 }
 
 module.exports = {

@@ -166,7 +166,9 @@ async function seedDatabase() {
 async function filterByCategory(category) {
   console.log(`\nProducts in category: "${category}"`);
   // TODO 2.1: Find products by category, log results
-  throw new Error('TODO 2.1: implement filterByCategory()');
+  const products = await Product.find({ category }).lean();
+  console.log(`Found ${products.length} products:`);
+  products.forEach((p) => console.log(`  - ${p.name}`));
 }
 
 // ============================================================
@@ -187,7 +189,12 @@ async function filterByCategory(category) {
 async function filterByPriceRange(minPrice, maxPrice) {
   console.log(`\nProducts priced $${minPrice} - $${maxPrice}:`);
   // TODO 2.2: Find products within price range, sorted by price asc
-  throw new Error('TODO 2.2: implement filterByPriceRange()');
+  const products = await Product.find({
+    price: { $gte: minPrice, $lte: maxPrice },
+  })
+    .sort({ price: 1 })
+    .lean();
+  products.forEach((p) => console.log(`  - ${p.name}: $${p.price}`));
 }
 
 // ============================================================
@@ -208,7 +215,11 @@ async function filterByPriceRange(minPrice, maxPrice) {
 async function searchByName(keyword) {
   console.log(`\nSearch results for: "${keyword}"`);
   // TODO 2.3: Search products by name (case-insensitive)
-  throw new Error('TODO 2.3: implement searchByName()');
+  const products = await Product.find({
+    name: { $regex: keyword, $options: 'i' },
+  }).lean();
+  console.log(`Found ${products.length} results:`);
+  products.forEach((p) => console.log(`  - ${p.name}`));
 }
 
 // ============================================================
@@ -230,7 +241,12 @@ async function searchByName(keyword) {
 async function filterByCategories(categories) {
   console.log(`\nProducts in categories: ${categories.join(', ')}`);
   // TODO 2.4: Find products in multiple categories using $in
-  throw new Error('TODO 2.4: implement filterByCategories()');
+  const products = await Product.find({
+    category: { $in: categories },
+  })
+    .sort({ category: 1, name: 1 })
+    .lean();
+  products.forEach((p) => console.log(`  [${p.category}] ${p.name}`));
 }
 
 // ============================================================
@@ -268,7 +284,23 @@ async function getProductsPaginated({
   filter = {},
 } = {}) {
   // TODO 2.5: Implement pagination with countDocuments
-  throw new Error('TODO 2.5: implement getProductsPaginated()');
+  const skip = (page - 1) * limit;
+  const [data, total] = await Promise.all([
+    Product.find(filter).sort(sort).skip(skip).limit(limit).lean(),
+    Product.countDocuments(filter),
+  ]);
+  const totalPages = Math.ceil(total / limit);
+  return {
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrev: page > 1,
+    },
+  };
 }
 
 // ============================================================
@@ -290,7 +322,8 @@ async function getProductsPaginated({
 async function getProductsMinimal() {
   console.log('\nProducts (name, price, category only):');
   // TODO 2.6: Select only specific fields
-  throw new Error('TODO 2.6: implement getProductsMinimal()');
+  const products = await Product.find().select('name price category -_id').lean();
+  products.forEach((p) => console.log(`  ${JSON.stringify(p)}`));
 }
 
 // ============================================================
@@ -321,7 +354,23 @@ async function getProductsMinimal() {
 async function compareLean() {
   console.log('\n--- .lean() comparison ---');
   // TODO 2.7: Compare lean vs non-lean, measure time difference
-  throw new Error('TODO 2.7: implement compareLean()');
+  const withLean = await Product.findOne().lean();
+  const withoutLean = await Product.findOne();
+
+  console.log('With lean - constructor:', withLean.constructor.name);
+  console.log('Without lean - constructor:', withoutLean.constructor.name);
+
+  // lean returns plain object — no .save()
+  console.log('withLean.save:', typeof withLean.save);
+  console.log('withoutLean.save:', typeof withoutLean.save);
+
+  console.time('without lean');
+  await Product.find();
+  console.timeEnd('without lean');
+
+  console.time('with lean');
+  await Product.find().lean();
+  console.timeEnd('with lean');
 }
 
 // ============================================================
@@ -359,7 +408,23 @@ async function compareLean() {
 async function getCategoryStats() {
   console.log('\nCategory Statistics:');
   // TODO 2.8: Aggregate stats per category
-  throw new Error('TODO 2.8: implement getCategoryStats()');
+  const stats = await Product.aggregate([
+    {
+      $group: {
+        _id: '$category',
+        count: { $sum: 1 },
+        avgPrice: { $avg: '$price' },
+        maxPrice: { $max: '$price' },
+      },
+    },
+    { $sort: { count: -1 } },
+  ]);
+
+  stats.forEach((s) => {
+    console.log(
+      `Category: ${s._id.padEnd(10)} | count: ${s.count} | avgPrice: $${s.avgPrice.toFixed(2)} | maxPrice: $${s.maxPrice}`,
+    );
+  });
 }
 
 // ============================================================

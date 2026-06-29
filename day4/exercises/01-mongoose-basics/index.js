@@ -88,7 +88,22 @@ const User = mongoose.model('User', userSchema);
 
 async function connectDB() {
   // TODO 1.1: Implement connection + events
-  throw new Error('TODO 1.1: implement connectDB()');
+  mongoose.connection.on('connected', () => {
+    console.log('MongoDB connected to:', mongoose.connection.host);
+  });
+  mongoose.connection.on('error', (err) => {
+    console.error('MongoDB connection error:', err.message);
+  });
+  mongoose.connection.on('disconnected', () => {
+    console.log('MongoDB disconnected');
+  });
+
+  process.on('SIGINT', async () => {
+    await mongoose.connection.close();
+    process.exit(0);
+  });
+
+  await mongoose.connect(process.env.MONGO_URI);
 }
 
 // ============================================================
@@ -110,7 +125,20 @@ async function connectDB() {
 
 async function createUsers() {
   // TODO 1.2: Tạo 3 users bằng User.create()
-  throw new Error('TODO 1.2: implement createUsers()');
+  const usersData = [
+    { name: 'Alice', email: 'alice@example.com', password: 'Password123', role: 'admin', age: 28 },
+    { name: 'Bob', email: 'bob@example.com', password: 'Password456', role: 'user', age: 24 },
+    { name: 'Carol', email: 'carol@example.com', password: 'Password789', role: 'user', age: 31 },
+  ];
+
+  const users = [];
+  for (const data of usersData) {
+    const user = await User.create(data);
+    console.log(`Created user: ${user.name} (id: ${user._id})`);
+    users.push(user);
+  }
+
+  return users;
 }
 
 // ============================================================
@@ -127,7 +155,9 @@ async function createUsers() {
 
 async function getAllUsers() {
   // TODO 1.3: Lấy tất cả users và log ra
-  throw new Error('TODO 1.3: implement getAllUsers()');
+  const users = await User.find();
+  console.log(`Total users: ${users.length}`);
+  users.forEach((u) => console.log(`- ${u.name} (${u.email}) [${u.role}]`));
 }
 
 // ============================================================
@@ -145,7 +175,13 @@ async function getAllUsers() {
 
 async function getUserById(userId) {
   // TODO 1.4: Tìm user theo id
-  throw new Error('TODO 1.4: implement getUserById()');
+  const user = await User.findById(userId);
+  if (!user) {
+    console.log(`User not found: ${userId}`);
+    return null;
+  }
+  console.log(`Found user: ${user.name} - created at ${user.createdAt}`);
+  return user;
 }
 
 // ============================================================
@@ -168,7 +204,17 @@ async function getUserById(userId) {
 
 async function updateUser(userId, updateData) {
   // TODO 1.5: Update user và trả về updated document
-  throw new Error('TODO 1.5: implement updateUser()');
+  const before = await User.findById(userId);
+  const updated = await User.findByIdAndUpdate(userId, updateData, {
+    new: true,
+    runValidators: true,
+  });
+
+  if (before && updated && updateData.name) {
+    console.log(`Updated: ${before.name} -> ${updated.name}`);
+  }
+
+  return updated;
 }
 
 // ============================================================
@@ -188,7 +234,11 @@ async function updateUser(userId, updateData) {
 
 async function deleteUser(userId) {
   // TODO 1.6: Xóa user theo id
-  throw new Error('TODO 1.6: implement deleteUser()');
+  const deleted = await User.findByIdAndDelete(userId);
+  if (!deleted) throw new Error('User not found');
+  console.log(`Deleted user: ${deleted.name} (${deleted.email})`);
+  const remaining = await User.countDocuments();
+  console.log(`Remaining users: ${remaining}`);
 }
 
 // ============================================================
@@ -197,19 +247,29 @@ async function deleteUser(userId) {
 // Sau khi hoàn thành bài 1-6, trả lời các câu hỏi sau TRONG CODE dưới dạng comment:
 //
 // Q1: ObjectId là gì? Tại sao MongoDB dùng ObjectId thay vì integer auto-increment?
-//     A1: ...
+//     A1: ObjectId là một giá trị 12-byte được tạo tự động bởi MongoDB, gồm 4-byte timestamp,
+//         5-byte machine+process identifier, và 3-byte counter. MongoDB dùng ObjectId thay vì
+//         integer auto-increment vì trong hệ thống phân tán, nhiều node có thể tạo document cùng lúc
+//         mà không cần một server trung tâm để cấp ID — ObjectId đảm bảo unique trên toàn cluster.
 //
 // Q2: Mongoose schema validation khác Joi validation ở điểm nào?
 //     Khi nào dùng Mongoose validation, khi nào dùng Joi?
-//     A2: ...
+//     A2: Mongoose validation chạy ở tầng model (database layer) — kiểm tra khi lưu xuống DB,
+//         đảm bảo data integrity. Joi validation chạy ở tầng request (HTTP layer) — kiểm tra trước
+//         khi data vào controller, cho error message thân thiện hơn. Nên dùng cả hai: Joi để validate
+//         input từ user, Mongoose để đảm bảo data consistency ở DB.
 //
 // Q3: `select: false` trong schema có nghĩa gì?
 //     Làm sao để lấy được field bị select: false khi cần (ví dụ: login)?
-//     A3: ...
+//     A3: `select: false` ẩn field đó trong mọi query mặc định — field không xuất hiện trong kết quả
+//         trả về. Để lấy field này khi cần (ví dụ login cần password để so sánh), dùng
+//         `.select("+password")` — dấu "+" override select:false, buộc Mongoose include field đó.
 //
 // Q4: Tại sao nên dùng `{ new: true }` trong findByIdAndUpdate?
 //     Điều gì xảy ra nếu không có option này?
-//     A4: ...
+//     A4: Mặc định findByIdAndUpdate() trả về document TRƯỚC KHI update. `{ new: true }` bắt Mongoose
+//         trả về document SAU KHI update, tức là phiên bản mới nhất. Nếu không có option này, giá trị
+//         trả về là data cũ, không phản ánh thay đổi vừa thực hiện.
 
 // ============================================================
 // TEST RUNNER - Chạy tất cả bài theo thứ tự

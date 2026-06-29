@@ -127,7 +127,25 @@ async function seedData() {
 async function createPostWithReference() {
   console.log('\n--- TODO 3.1: Create post with reference ---');
   // TODO 3.1: Tạo user Dave và post với reference đến Dave
-  throw new Error('TODO 3.1: implement createPostWithReference()');
+  const dave = await User.create({
+    name: 'Dave Pham',
+    email: 'dave@example.com',
+    password: 'Password123',
+    role: 'user',
+  });
+
+  const post = await Post.create({
+    title: 'Dave first post',
+    content: "This is Dave's first post about learning MongoDB and Mongoose with references.",
+    author: dave._id,
+    tags: ['mongodb', 'mongoose'],
+    published: true,
+  });
+
+  console.log('Before populate - post.author:', post.author); // ObjectId
+  await post.populate('author');
+  console.log('After populate - post.author.name:', post.author.name); // "Dave Pham"
+  // post.author lưu ObjectId trong DB; sau populate() nó trở thành User document đầy đủ
 }
 
 // ============================================================
@@ -149,7 +167,11 @@ async function createPostWithReference() {
 async function getAllPostsWithAuthor() {
   console.log('\n--- TODO 3.2: Get all posts with author populated ---');
   // TODO 3.2: Find all posts, populate author
-  throw new Error('TODO 3.2: implement getAllPostsWithAuthor()');
+  const posts = await Post.find().populate('author').lean();
+  posts.forEach((p) => {
+    const status = p.published ? 'published' : 'draft';
+    console.log(`[${status}] ${p.title} by ${p.author.name} (${p.author.email})`);
+  });
 }
 
 // ============================================================
@@ -172,7 +194,15 @@ async function getAllPostsWithAuthor() {
 async function getPostsSelectivePopulate() {
   console.log('\n--- TODO 3.3: Populate with field selection ---');
   // TODO 3.3: Populate author with only name and email fields
-  throw new Error('TODO 3.3: implement getPostsSelectivePopulate()');
+  const posts = await Post.find()
+    .select('title published author')
+    .populate({ path: 'author', select: 'name email -_id' })
+    .lean();
+  posts.forEach((p) => {
+    console.log(`  title: ${p.title}`);
+    console.log(`  author: ${JSON.stringify(p.author)}`);
+    console.log(`  (no password/role in author)`);
+  });
 }
 
 // ============================================================
@@ -195,7 +225,12 @@ async function getPostsSelectivePopulate() {
 async function getPostsByUser(userId) {
   console.log(`\n--- TODO 3.4: Get posts by user ${userId} ---`);
   // TODO 3.4: Find published posts by specific user
-  throw new Error('TODO 3.4: implement getPostsByUser()');
+  const posts = await Post.find({ author: userId, published: true })
+    .sort({ createdAt: -1 })
+    .populate('author', 'name')
+    .lean();
+  console.log(`${posts[0]?.author?.name ?? 'User'} has ${posts.length} published posts:`);
+  posts.forEach((p) => console.log(`  - ${p.title} (tags: ${p.tags.join(', ')})`));
 }
 
 // ============================================================
@@ -220,7 +255,25 @@ async function getPostsByUser(userId) {
 async function getPublishedPosts() {
   console.log('\n--- TODO 3.5: Get published posts with author info ---');
   // TODO 3.5: Find all published posts, populate author, sort by createdAt desc
-  throw new Error('TODO 3.5: implement getPublishedPosts()');
+  const posts = await Post.find({ published: true })
+    .sort({ createdAt: -1 })
+    .select('title tags author createdAt')
+    .populate({ path: 'author', select: 'name email bio' })
+    .lean();
+  console.log(`Total published posts: ${posts.length}`);
+
+  // Bonus: group by author name
+  const grouped = {};
+  posts.forEach((p) => {
+    const authorName = p.author.name;
+    if (!grouped[authorName]) grouped[authorName] = [];
+    grouped[authorName].push(p);
+  });
+
+  Object.entries(grouped).forEach(([author, authorPosts]) => {
+    console.log(`\n  [${author}]`);
+    authorPosts.forEach((p) => console.log(`    - ${p.title} (tags: ${p.tags.join(', ')})`));
+  });
 }
 
 // ============================================================
@@ -251,12 +304,22 @@ async function getPublishedPosts() {
 async function demonstrateVirtuals() {
   console.log('\n--- TODO 3.6: Virtual fields ---');
   // TODO 3.6: Access virtual fields (snippet, displayName)
-  // Trả lời câu hỏi tư duy trong comment bên dưới
+  // Không dùng .lean() vì lean() bỏ virtuals
+  const post = await Post.findOne({ published: true }).populate('author');
+  console.log('Snippet:', post.snippet);
+  console.log('Display name:', post.author.displayName);
+
+  // Q1: populate() trong Mongoose tương đương với JOIN trong SQL.
+  //     Tuy nhiên đây là nhiều query: Mongoose thực hiện 2 queries riêng biệt —
+  //     query Post collection, rồi query User collection với _id $in [...authorIds].
   //
-  // Q1: ...
-  // Q2: ...
-  // Q3: ...
-  throw new Error('TODO 3.6: implement demonstrateVirtuals()');
+  // Q2: Embed khi dữ liệu nhỏ, ít thay đổi, luôn load cùng parent (ví dụ: address trong User).
+  //     Reference khi dữ liệu lớn/không giới hạn, cần query độc lập (ví dụ: Post của User).
+  //     Comment: nên dùng reference vì số lượng không giới hạn, cần query độc lập theo post.
+  //
+  // Q3: populate() thực hiện nhiều query (N+1 problem nếu dùng trong loop).
+  //     Giải pháp: dùng populate() một lần thay vì trong vòng lặp; dùng .select() để giới hạn
+  //     fields; hoặc dùng MongoDB $lookup aggregation pipeline để JOIN trong 1 query.
 }
 
 // ============================================================
