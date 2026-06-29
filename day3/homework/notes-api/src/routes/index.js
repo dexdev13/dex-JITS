@@ -32,6 +32,7 @@ router.post('/auth/login', validate(loginSchema), authController.login);
 // DELETE /notes/:id   -> notesController.deleteNote
 router.get('/notes', authenticate, validate(noteQuerySchema, 'query'), notesController.getMyNotes);
 router.post('/notes', authenticate, validate(createNoteSchema), notesController.createNote);
+router.get('/notes/search', authenticate, validate(noteQuerySchema, 'query'), notesController.searchNotes);
 router.get('/notes/:id', authenticate, notesController.getNoteById);
 router.put('/notes/:id', authenticate, validate(updateNoteSchema), notesController.updateNote);
 router.delete('/notes/:id', authenticate, notesController.deleteNote);

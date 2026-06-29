@@ -99,4 +99,18 @@ async function getAllNotes(req, res, next) {
   }
 }
 
-module.exports = { getMyNotes, getNoteById, createNote, updateNote, deleteNote, getAllNotes };
+/**
+ * GET /api/notes/search?q=keyword
+ * - Tìm kiếm notes của user theo title hoặc content
+ * - Response 200: { success: true, data: notes, total: notes.length }
+ */
+async function searchNotes(req, res, next) {
+  try {
+    const notes = await notesService.getUserNotes(req.user.userId, req.query);
+    res.json({ success: true, data: notes, total: notes.length });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getMyNotes, getNoteById, createNote, updateNote, deleteNote, getAllNotes, searchNotes };
