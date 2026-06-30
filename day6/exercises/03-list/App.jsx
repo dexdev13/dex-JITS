@@ -73,6 +73,38 @@ const products = [
 
 // TODO 3.1 — Implement ProductCard bên dưới:
 
+function ProductCard({ name, price, category, rating, inStock }) {
+  const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+  return (
+    <div
+      style={{
+        border: '1px solid #ddd',
+        padding: 16,
+        borderRadius: 8,
+        minWidth: 180,
+        opacity: inStock ? 1 : 0.5,
+      }}
+    >
+      <h3 style={{ margin: '0 0 8px' }}>{name}</h3>
+      <p style={{ margin: '4px 0' }}>{price.toLocaleString('vi-VN')} VND</p>
+      <span style={{ background: '#eee', padding: '2px 6px', borderRadius: 4, fontSize: 12 }}>
+        {category}
+      </span>
+      <p style={{ margin: '6px 0', color: '#f5a623' }}>{stars}</p>
+      <p
+        style={{
+          margin: '4px 0',
+          color: inStock ? 'green' : 'red',
+          fontWeight: 'bold',
+          fontSize: 12,
+        }}
+      >
+        {inStock ? 'Còn hàng' : 'Hết hàng'}
+      </p>
+    </div>
+  );
+}
+
 // ============================================================
 // TODO 3.2: ProductList component
 // ============================================================
@@ -101,6 +133,19 @@ const products = [
 
 // TODO 3.2 — Implement ProductList bên dưới:
 
+function ProductList({ products }) {
+  if (products.length === 0) {
+    return <p>Không có sản phẩm nào.</p>;
+  }
+  return (
+    <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+      {products.map((product) => (
+        <ProductCard key={product.id} {...product} />
+      ))}
+    </div>
+  );
+}
+
 // ============================================================
 // TODO 3.3: FilteredProductList — filter + map
 // ============================================================
@@ -121,6 +166,16 @@ const products = [
 
 // TODO 3.3 — Implement FilteredProductList bên dưới:
 
+function FilteredProductList({ products, category }) {
+  const filtered = category === 'all' ? products : products.filter((p) => p.category === category);
+  return (
+    <div>
+      <p>Hiển thị {filtered.length} sản phẩm</p>
+      <ProductList products={filtered} />
+    </div>
+  );
+}
+
 // ============================================================
 // TODO 3.4: Sorted list
 // ============================================================
@@ -139,6 +194,16 @@ const products = [
 
 // TODO 3.4 — Implement SortedProductList bên dưới:
 
+function SortedProductList({ products, sortBy }) {
+  const sorted = [...products].sort((a, b) => {
+    if (sortBy === 'name') return a.name.localeCompare(b.name);
+    if (sortBy === 'price') return a.price - b.price;
+    if (sortBy === 'rating') return b.rating - a.rating;
+    return 0;
+  });
+  return <ProductList products={sorted} />;
+}
+
 // ============================================================
 // App — Render tất cả components để test
 // ============================================================
@@ -150,25 +215,25 @@ function App() {
 
       <h2>3.2 — ProductList (tất cả)</h2>
       {/* TODO: Uncomment sau khi implement */}
-      {/* <ProductList products={products} /> */}
+      <ProductList products={products} />
 
       <h2>3.2 — ProductList (empty)</h2>
-      {/* <ProductList products={[]} /> */}
+      <ProductList products={[]} />
 
       <h2>3.3 — FilteredProductList (category: peripheral)</h2>
-      {/* <FilteredProductList products={products} category="peripheral" /> */}
+      <FilteredProductList products={products} category="peripheral" />
 
       <h2>3.3 — FilteredProductList (category: all)</h2>
-      {/* <FilteredProductList products={products} category="all" /> */}
+      <FilteredProductList products={products} category="all" />
 
       <h2>3.3 — FilteredProductList (category: phone — empty)</h2>
-      {/* <FilteredProductList products={products} category="phone" /> */}
+      <FilteredProductList products={products} category="phone" />
 
       <h2>3.4 — SortedProductList (by price)</h2>
-      {/* <SortedProductList products={products} sortBy="price" /> */}
+      <SortedProductList products={products} sortBy="price" />
 
       <h2>3.4 — SortedProductList (by rating)</h2>
-      {/* <SortedProductList products={products} sortBy="rating" /> */}
+      <SortedProductList products={products} sortBy="rating" />
     </div>
   );
 }
@@ -182,17 +247,26 @@ export default App;
 // Q1: Tại sao KHÔNG dùng index làm key khi list có thể thay đổi thứ tự?
 //     Cho ví dụ cụ thể bug xảy ra khi dùng index làm key.
 //
-//     YOUR ANSWER: ___________________________________________________________
+//     YOUR ANSWER: React dùng key để xác định item nào thay đổi/thêm/xóa. Nếu
+//     dùng index: sau khi xóa item đầu, item thứ 2 trở thành index 0 → React
+//     tưởng item 0 thay đổi chứ không bị xóa → input state (uncontrolled) của
+//     item cũ bị giữ lại, gán nhầm cho item mới. Bug: input bị "shift" sang item khác.
 //
 // Q2: Tại sao products.sort() sai mà phải dùng [...products].sort()?
 //     Gợi ý: mutable vs immutable — React so sánh reference
 //
-//     YOUR ANSWER: ___________________________________________________________
+//     YOUR ANSWER: Array.sort() mutate mảng gốc in-place. Nếu products là prop
+//     hoặc state, mutate trực tiếp sẽ thay đổi reference gốc mà không qua setState
+//     → React không phát hiện thay đổi, UI không re-render đúng. Spread [...products]
+//     tạo array mới → sort an toàn, không ảnh hưởng mảng gốc.
 //
 // Q3: Nếu list có 1000 items và user filter bằng input text,
 //     việc filter + map chạy MỖI LẦN gõ phím có vấn đề không?
 //     Nếu có, dùng cái gì để tối ưu? (Gợi ý: đã học ở Phần 5)
 //
-//     YOUR ANSWER: ___________________________________________________________
+//     YOUR ANSWER: Có vấn đề — mỗi keystroke trigger re-render và filter 1000
+//     items lại từ đầu, lãng phí nếu các deps khác không thay đổi. Dùng useMemo:
+//     useMemo(() => products.filter(...), [products, search]) để cache kết quả,
+//     chỉ tính lại khi products hoặc search thực sự thay đổi.
 //
 // ─────────────────────────────────────────────────────────────

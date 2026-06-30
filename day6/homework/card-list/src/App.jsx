@@ -27,6 +27,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 // TODO: import ProductList từ "./components/ProductList"
+import ProductList from './components/ProductList';
 import './App.css';
 
 // ─── Data mẫu (hardcode) ─────────────────────────────────────────────────────
@@ -145,10 +146,36 @@ const products = [
 
 function App() {
   // TODO: khai báo state (search, filterCategory, showInStockOnly, sortBy, cart)
+  const [search, setSearch] = useState('');
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [showInStockOnly, setShowInStockOnly] = useState(false);
+  const [sortBy, setSortBy] = useState('name');
+  const [cart, setCart] = useState([]);
 
   // TODO: useMemo cho filteredAndSortedProducts
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = products
+      .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()))
+      .filter((p) => filterCategory === 'all' || p.category === filterCategory)
+      .filter((p) => !showInStockOnly || p.inStock);
+
+    return [...result].sort((a, b) => {
+      if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'price-asc') return a.price - b.price;
+      if (sortBy === 'price-desc') return b.price - a.price;
+      if (sortBy === 'rating') return b.rating - a.rating;
+      return 0;
+    });
+  }, [search, filterCategory, showInStockOnly, sortBy]);
 
   // TODO: useCallback cho handleAddToCart, handleRemoveFromCart
+  const handleAddToCart = useCallback((id) => {
+    setCart((prev) => (prev.includes(id) ? prev : [...prev, id]));
+  }, []);
+
+  const handleRemoveFromCart = useCallback((id) => {
+    setCart((prev) => prev.filter((cartId) => cartId !== id));
+  }, []);
 
   // Lấy danh sách categories unique từ data
   const categories = ['all', ...new Set(products.map((p) => p.category))];
@@ -156,8 +183,78 @@ function App() {
   return (
     <div className="app">
       {/* TODO: Implement UI */}
-      <h1>Product Store</h1>
-      <p>TODO: Implement theo yêu cầu trên</p>
+      <header
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <h1 style={{ margin: 0 }}>Product Store</h1>
+        <span>🛒 Giỏ hàng: {cart.length} sản phẩm</span>
+      </header>
+
+      <div style={{ marginBottom: 12 }}>
+        <input
+          type="text"
+          placeholder="Tìm kiếm sản phẩm..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{ padding: 8, width: '100%', fontSize: 14 }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setFilterCategory(cat)}
+            style={{
+              padding: '6px 12px',
+              backgroundColor: filterCategory === cat ? '#007bff' : '#eee',
+              color: filterCategory === cat ? 'white' : 'black',
+              border: '1px solid #ccc',
+              borderRadius: 4,
+              cursor: 'pointer',
+            }}
+          >
+            {cat === 'all' ? 'Tất cả' : cat}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 12 }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={showInStockOnly}
+            onChange={(e) => setShowInStockOnly(e.target.checked)}
+            style={{ marginRight: 6 }}
+          />
+          Chỉ còn hàng
+        </label>
+
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          style={{ padding: '6px 8px' }}
+        >
+          <option value="name">Theo tên</option>
+          <option value="price-asc">Giá tăng</option>
+          <option value="price-desc">Giá giảm</option>
+          <option value="rating">Rating</option>
+        </select>
+      </div>
+
+      <p style={{ color: '#666', marginBottom: 12 }}>{filteredAndSortedProducts.length} sản phẩm</p>
+
+      <ProductList
+        products={filteredAndSortedProducts}
+        cart={cart}
+        onAddToCart={handleAddToCart}
+        onRemoveFromCart={handleRemoveFromCart}
+      />
     </div>
   );
 }

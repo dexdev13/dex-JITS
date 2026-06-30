@@ -34,10 +34,14 @@ import { useState, useRef } from 'react';
 // TODO 4.1 — Implement CounterWithLet bên dưới:
 
 function CounterWithLet() {
-  // TODO: khai báo let count = 0
+  // GIẢI THÍCH: let count là biến local trong function. Khi React re-render,
+  // nó gọi lại function CounterWithLet() → count được reset về 0 mỗi lần.
+  // Thay đổi count không trigger re-render, nên UI không bao giờ cập nhật.
+  let count = 0;
 
   function handleClick() {
-    // TODO: tăng count, console.log
+    count += 1;
+    console.log('let count:', count);
   }
 
   console.log('CounterWithLet rendered'); // để thấy component có re-render không
@@ -46,7 +50,7 @@ function CounterWithLet() {
     <div style={{ border: '2px solid red', padding: 16, borderRadius: 8 }}>
       <h3>Counter với let (SAI)</h3>
       {/* TODO: hiển thị count và button */}
-      <p>Count: ???</p>
+      <p>Count: {count}</p>
       <button onClick={handleClick}>Tăng</button>
       <p style={{ color: 'red', fontSize: 12 }}>
         Mở Console để thấy giá trị thực — UI không cập nhật!
@@ -73,7 +77,12 @@ function CounterWithLet() {
 // TODO 4.2 — Implement CounterWithState bên dưới:
 
 function CounterWithState() {
-  // TODO: const [count, setCount] = useState(0);
+  const [count, setCount] = useState(0);
+
+  function handleIncrease() {
+    console.log('state count:', count);
+    setCount(count + 1);
+  }
 
   console.log('CounterWithState rendered'); // để thấy re-render xảy ra
 
@@ -81,10 +90,10 @@ function CounterWithState() {
     <div style={{ border: '2px solid green', padding: 16, borderRadius: 8 }}>
       <h3>Counter với useState (ĐÚNG)</h3>
       {/* TODO: hiển thị count và 3 buttons */}
-      <p>Count: ???</p>
-      <button>Tăng</button>
-      <button>Giảm</button>
-      <button>Reset</button>
+      <p>Count: {count}</p>
+      <button onClick={handleIncrease}>Tăng</button>
+      <button onClick={() => setCount((c) => Math.max(0, c - 1))}>Giảm</button>
+      <button onClick={() => setCount(0)}>Reset</button>
     </div>
   );
 }
@@ -110,15 +119,29 @@ function CounterWithState() {
 // TODO 4.3 — Implement DoubleCounter bên dưới:
 
 function DoubleCounter() {
-  // TODO: implement
+  const [count, setCount] = useState(0);
 
   return (
     <div style={{ border: '2px solid blue', padding: 16, borderRadius: 8 }}>
       <h3>Double Counter — Functional Update</h3>
-      <p>Count: ???</p>
-      <button>Tăng 2 (SAI — sẽ chỉ tăng 1)</button>
-      <button>Tăng 2 (ĐÚNG — tăng thật sự 2)</button>
-      <button>Reset</button>
+      <p>Count: {count}</p>
+      <button
+        onClick={() => {
+          setCount(count + 1);
+          setCount(count + 1);
+        }}
+      >
+        Tăng 2 (SAI — sẽ chỉ tăng 1)
+      </button>
+      <button
+        onClick={() => {
+          setCount((prev) => prev + 1);
+          setCount((prev) => prev + 1);
+        }}
+      >
+        Tăng 2 (ĐÚNG — tăng thật sự 2)
+      </button>
+      <button onClick={() => setCount(0)}>Reset</button>
     </div>
   );
 }
@@ -144,12 +167,31 @@ function DoubleCounter() {
 // TODO 4.4 — Implement UserProfile bên dưới:
 
 function UserProfile() {
-  // TODO: implement
+  const [user, setUser] = useState({ name: 'Alice', age: 25, city: 'HCM' });
 
   return (
     <div style={{ border: '2px solid purple', padding: 16, borderRadius: 8 }}>
       <h3>User Profile — Immutable Object State</h3>
       {/* TODO: hiển thị user info, buttons, input */}
+      <p>
+        Tên: {user.name} | Tuổi: {user.age} | Thành phố: {user.city}
+      </p>
+      <button
+        onClick={() => {
+          user.age += 1;
+          setUser(user);
+        }}
+      >
+        Tăng tuổi (SAI)
+      </button>{' '}
+      <button onClick={() => setUser({ ...user, age: user.age + 1 })}>Tăng tuổi (ĐÚNG)</button>
+      <br />
+      <input
+        placeholder="Đổi tên"
+        value={user.name}
+        onChange={(e) => setUser({ ...user, name: e.target.value })}
+        style={{ marginTop: 8 }}
+      />
     </div>
   );
 }
@@ -157,12 +199,43 @@ function UserProfile() {
 // TODO 4.4 — Implement TodoMini bên dưới:
 
 function TodoMini() {
-  // TODO: implement
+  const [todos, setTodos] = useState(['Học React', 'Làm bài tập']);
+  const [newTodo, setNewTodo] = useState('');
+
+  function handleAdd() {
+    if (!newTodo.trim()) return;
+    setTodos([...todos, newTodo.trim()]);
+    setNewTodo('');
+  }
 
   return (
     <div style={{ border: '2px solid orange', padding: 16, borderRadius: 8 }}>
       <h3>Todo Mini — Immutable Array State</h3>
       {/* TODO: input, button thêm, list với button xóa */}
+      <div>
+        <input
+          value={newTodo}
+          onChange={(e) => setNewTodo(e.target.value)}
+          placeholder="Thêm todo..."
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+        />
+        <button onClick={handleAdd} style={{ marginLeft: 8 }}>
+          Thêm
+        </button>
+      </div>
+      <ul>
+        {todos.map((todo, i) => (
+          <li key={i}>
+            {todo}
+            <button
+              onClick={() => setTodos(todos.filter((_, idx) => idx !== i))}
+              style={{ marginLeft: 8, color: 'red' }}
+            >
+              Xóa
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -197,16 +270,21 @@ export default App;
 // Q1: React re-render component bằng cách nào?
 //     (Gợi ý: gọi lại function component → let bị reset)
 //
-//     YOUR ANSWER: ___________________________________________________________
+//     YOUR ANSWER: Khi state/props thay đổi, React gọi lại toàn bộ function
+//     component từ đầu. Mọi biến let khai báo trong function sẽ được khởi tạo
+//     lại về giá trị ban đầu mỗi lần render → không lưu được giá trị giữa renders.
 //
 // Q2: Tại sao setUser(user) không gây re-render khi user.age đã thay đổi?
 //     (Gợi ý: React dùng Object.is() để so sánh state cũ và mới)
 //
-//     YOUR ANSWER: ___________________________________________________________
+//     YOUR ANSWER: React dùng Object.is() để so sánh state mới và cũ. user.age += 1
+//     mutate trực tiếp object gốc → reference không đổi → Object.is(old, new) = true
+//     → React bỏ qua, không re-render. Phải dùng {...user, age: user.age + 1} tạo
+//     object mới → reference khác → React nhận ra state thay đổi → re-render.
 //
 // Q3: Viết 3 dòng tóm tắt khi nào dùng:
-//     - let: __________________________________________________________________
-//     - useState: _____________________________________________________________
-//     - useRef: _______________________________________________________________
+//     - let: Biến tạm dùng trong render, không cần persist giữa renders (vd: computed value).
+//     - useState: Dữ liệu cần persist và khi thay đổi phải trigger UI re-render.
+//     - useRef: Dữ liệu cần persist nhưng KHÔNG muốn trigger re-render (vd: DOM ref, timer id, render count).
 //
 // ─────────────────────────────────────────────────────────────

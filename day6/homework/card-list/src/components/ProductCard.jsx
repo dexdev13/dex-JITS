@@ -69,8 +69,83 @@ function ProductCard({
   onAddToCart,
   onRemoveFromCart,
 }) {
-  // TODO: implement
-  return null;
+  console.log('ProductCard rendered:', name);
+
+  const stars = '★'.repeat(rating) + '☆'.repeat(5 - rating);
+
+  return (
+    <div
+      className={`product-card ${!inStock ? 'out-of-stock' : ''} ${isInCart ? 'in-cart' : ''}`}
+      style={{
+        border: isInCart ? '2px solid #007bff' : '1px solid #ddd',
+        borderRadius: 8,
+        padding: 16,
+        opacity: inStock ? 1 : 0.6,
+      }}
+    >
+      <h3 style={{ margin: '0 0 8px' }}>{name}</h3>
+      <p style={{ margin: '4px 0', fontWeight: 'bold' }}>{price.toLocaleString('vi-VN')} ₫</p>
+      <span style={{ background: '#e0e0e0', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>
+        {category}
+      </span>
+      <p style={{ margin: '6px 0', color: '#f5a623' }}>{stars}</p>
+      <p
+        style={{
+          margin: '4px 0',
+          color: inStock ? 'green' : 'red',
+          fontSize: 12,
+          fontWeight: 'bold',
+        }}
+      >
+        {inStock ? 'Còn hàng' : 'Hết hàng'}
+      </p>
+      {!inStock ? (
+        <button
+          disabled
+          style={{
+            marginTop: 8,
+            padding: '8px 16px',
+            background: '#ccc',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'not-allowed',
+          }}
+        >
+          Hết hàng
+        </button>
+      ) : isInCart ? (
+        <button
+          onClick={() => onRemoveFromCart(id)}
+          style={{
+            marginTop: 8,
+            padding: '8px 16px',
+            background: '#dc3545',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          Xóa khỏi giỏ
+        </button>
+      ) : (
+        <button
+          onClick={() => onAddToCart(id)}
+          style={{
+            marginTop: 8,
+            padding: '8px 16px',
+            background: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: 4,
+            cursor: 'pointer',
+          }}
+        >
+          Thêm vào giỏ
+        </button>
+      )}
+    </div>
+  );
 }
 
 export default ProductCard;
